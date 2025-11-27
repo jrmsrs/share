@@ -5,33 +5,170 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Share helper</title>
   <style>
-    :root { color-scheme: light dark; }
-    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 2rem; display: flex; min-height: 100vh; align-items: center; justify-content: center; background: #0b0b0c; color: #f5f5f5; }
-    main { max-width: 480px; text-align: center; }
-    h1 { font-size: 1.25rem; margin-bottom: 0.75rem; }
-    p { margin: 0.25rem 0 0.5rem; font-size: 0.95rem; opacity: 0.8; }
-    code { font-family: ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-    .hidden { display: none; }
+    :root {
+      color-scheme: light dark;
+      --bg-light: #fff;
+      --bg-dark: #101014;
+      --fg-light: #111;
+      --fg-dark: #f5f5f5;
+      --card-bg-light: #f3f3f7;
+      --card-bg-dark: #161622;
+      --card-border: #c8c8d5;
+      --thumb-bg: #e0e0e6;
+      --thumb-bg-dark: #232338;
+      --shadow: 0 1px 8px 0 rgb(60 60 90 / 7%);
+    }
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: var(--bg-dark);
+        color: var(--fg-dark);
+      }
+      .card {
+        background: var(--card-bg-dark);
+        color: var(--fg-dark);
+        border-color: #232338;
+      }
+      .thumb-placeholder {
+        background: var(--thumb-bg-dark);
+      }
+    }
+    @media (prefers-color-scheme: light), (prefers-color-scheme: no-preference) {
+      body {
+        background: var(--bg-light);
+        color: var(--fg-light);
+      }
+      .card {
+        background: var(--card-bg-light);
+        color: var(--fg-light);
+        border-color: var(--card-border);
+      }
+      .thumb-placeholder {
+        background: var(--thumb-bg);
+      }
+    }
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      height: 100vh;
+      width: 100vw;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      transition: background .2s;
+    }
+    main {
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+    }
+    h1, h2 {
+      font-size: 1.1rem;
+      margin: 1rem 0 0.5rem;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+    }
+    p, .card p, .desc, .err {
+      font-size: 1rem;
+      opacity: 0.95;
+      margin: 0.25rem 0;
+      line-height: 1.5;
+      word-break: break-word;
+    }
+    .share-tip {
+      font-size: 1.01rem;
+      opacity: 0.90;
+      margin: 1rem 0 1.5rem;
+      font-weight: 400;
+      text-align: center;
+    }
+    .card {
+      border: 1.3px solid;
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 1.1rem 1rem 1rem 1rem;
+      margin: 0 0 1.1rem 0;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 0.45rem;
+      min-height: 120px;
+      transition: background .25s, color .25s;
+      word-break: break-all;
+    }
+    .thumb-placeholder {
+      min-width: 54px;
+      min-height: 54px;
+      width: 54px;
+      height: 54px;
+      border-radius: 9.5px;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.1rem;
+      color: #7b8192;
+    }
+    .url {
+      color: #1867d7;
+      font-size: .97rem;
+      margin: 2px 0 0 0;
+      text-decoration: none;
+      word-break: break-all;
+      opacity: 0.92;
+    }
+    .desc {
+      font-size: 0.97rem;
+      opacity: 0.84;
+      margin-bottom: 0.2rem;
+    }
+    .hidden { display: none !important; }
+    .err {
+      color: #f84c43;
+      margin: 1rem 0 0 0;
+      opacity: 0.98;
+      font-size: 1.06rem;
+      font-weight: 400;
+    }
+    @media(max-width: 600px) {
+      main { max-width: 97vw; }
+    }
   </style>
 </head>
 <body>
   <main>
     <h1 id="status">Preparando compartilhamento…</h1>
-    <p id="details" class="hidden"></p>
-    <p id="error" class="hidden"></p>
-    <noscript>
-      Este helper precisa de JavaScript habilitado para chamar a Web Share API.
-    </noscript>
+    <div class="share-tip" id="shareTip">Clique em qualquer lugar para compartilhar…</div>
+    <div class="card" id="previewCard" style="display:none;">
+      <div class="thumb-placeholder" id="thumb"><svg width="28" height="28" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="5" width="20" height="17" rx="3.5" fill="#bcbcbc"/><rect x="1" y="2" width="26" height="22" rx="6.5" stroke="#a0a0a0" stroke-width="1.6" fill="none"/><circle cx="9.5" cy="13.5" r="3.5" fill="#d5d5d5"/><rect x="13.5" y="11.8" width="7.5" height="3.1" rx="1.3" fill="#d5d5d5"/></svg></div>
+      <h2 id="cardTitle"></h2>
+      <p class="desc" id="cardText"></p>
+      <a class="url" id="cardUrl" rel="noopener noreferrer" target="_blank"></a>
+    </div>
+    <p class="err hidden" id="errMsg"></p>
+    <noscript>Este helper precisa de JavaScript habilitado para chamar a Web Share API.</noscript>
   </main>
   <script>
     (function () {
       const statusEl = document.getElementById('status');
-      const detailsEl = document.getElementById('details');
-      const errorEl = document.getElementById('error');
-
-      function setStatus(text) { statusEl.textContent = text; }
-      function showDetails(text) { detailsEl.textContent = text; detailsEl.classList.remove('hidden'); }
-      function showError(text) { errorEl.textContent = text; errorEl.classList.remove('hidden'); }
+      const tipEl = document.getElementById('shareTip');
+      const card = document.getElementById('previewCard');
+      const thumb = document.getElementById('thumb');
+      const cardTitle = document.getElementById('cardTitle');
+      const cardText = document.getElementById('cardText');
+      const cardUrl = document.getElementById('cardUrl');
+      const errMsg = document.getElementById('errMsg');
 
       const params = new URLSearchParams(window.location.search);
       const title = params.get('title') || '';
@@ -39,46 +176,58 @@
       const url = params.get('url') || '';
 
       if (!navigator.share) {
-        setStatus('Compartilhamento não suportado');
-        showError('Este navegador não suporta a Web Share API (navigator.share).');
-        showDetails('title=' + JSON.stringify(title) + ', text=' + JSON.stringify(text) + ', url=' + JSON.stringify(url));
+        statusEl.textContent = 'Compartilhamento não suportado';
+        tipEl.classList.add('hidden');
+        card.style.display = 'none';
+        errMsg.textContent = 'Este navegador não suporta a Web Share API (navigator.share).';
+        errMsg.classList.remove('hidden');
         return;
       }
 
-      const payload = {};
-      if (title) payload.title = title;
-      if (text) payload.text = text;
-      if (url) payload.url = url;
-
-      if (!payload.title && !payload.text && !payload.url) {
-        setStatus('Nada para compartilhar');
-        showError('Faltando ?title=, ?text= ou ?url= na query string.');
+      if (!title && !text && !url) {
+        statusEl.textContent = 'Nada para compartilhar';
+        tipEl.classList.add('hidden');
+        card.style.display = 'none';
+        errMsg.textContent = 'Faltando ?title=, ?text= ou ?url= na query string.';
+        errMsg.classList.remove('hidden');
         return;
       }
+      // card preview friendly for SM: show only if there is url or title/text
+      card.style.display = '';
+      // thumb: SVG placeholder for social card or website (would load from meta if available)
+      // Could extend: try fetch url's open graph thumb w/ fetch+proxy/cors-image for richer preview
 
-      setStatus('Clique em qualquer lugar para compartilhar…');
-      showDetails('title=' + JSON.stringify(title) + ', text=' + JSON.stringify(text) + ', url=' + JSON.stringify(url));
+      cardTitle.textContent = title ? title : '(Sem título)';
+      cardText.textContent = text ? text : '';
+      if (url && url.length > 0) {
+        cardUrl.href = url;
+        cardUrl.textContent = url;
+      } else {
+        cardUrl.textContent = '';
+        cardUrl.removeAttribute('href');
+      }
 
       function doShare() {
-        navigator.share(payload)
-          .then(function () {
-            setStatus('Compartilhado com sucesso');
-          })
-          .catch(function (err) {
-            if (err && err.name === 'AbortError') {
-              setStatus('Compartilhamento cancelado');
-            } else {
-              setStatus('Falha ao compartilhar');
-              showError('Erro: ' + (err && err.message ? err.message : String(err)));
-            }
-          })
-          .finally(function () {
-            document.removeEventListener('click', doShare);
-            document.removeEventListener('keydown', doShare);
-          });
+        navigator.share({
+          ...(title && {title}),
+          ...(text && {text}),
+          ...(url && {url})
+        })
+        .then(function () { statusEl.textContent = 'Compartilhado com sucesso'; })
+        .catch(function (err) {
+          if (err && err.name === 'AbortError') {
+            statusEl.textContent = 'Compartilhamento cancelado';
+          } else {
+            statusEl.textContent = 'Falha ao compartilhar';
+            errMsg.textContent = 'Erro: ' + (err && err.message ? err.message : String(err));
+            errMsg.classList.remove('hidden');
+          }
+        })
+        .finally(function () {
+          document.removeEventListener('click', doShare);
+          document.removeEventListener('keydown', doShare);
+        });
       }
-
-      // Exige gesto do usuário: clique ou qualquer tecla
       document.addEventListener('click', doShare);
       document.addEventListener('keydown', doShare);
     })();
