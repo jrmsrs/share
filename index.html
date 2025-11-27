@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Share helper</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 2rem; display: flex; min-height: 100vh; align-items: center; justify-content: center; background: #0b0b0c; color: #f5f5f5; }
+    main { max-width: 480px; text-align: center; }
+    h1 { font-size: 1.25rem; margin-bottom: 0.75rem; }
+    p { margin: 0.25rem 0 0.5rem; font-size: 0.95rem; opacity: 0.8; }
+    code { font-family: ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1 id="status">Preparing share…</h1>
+    <p id="details" class="hidden"></p>
+    <p id="error" class="hidden"></p>
+    <noscript>
+      This helper needs JavaScript enabled to call the Web Share API.
+    </noscript>
+  </main>
+  <script>
+    (function () {
+      const statusEl = document.getElementById('status');
+      const detailsEl = document.getElementById('details');
+      const errorEl = document.getElementById('error');
+
+      function setStatus(text) { statusEl.textContent = text; }
+      function showDetails(text) { detailsEl.textContent = text; detailsEl.classList.remove('hidden'); }
+      function showError(text) { errorEl.textContent = text; errorEl.classList.remove('hidden'); }
+
+      const params = new URLSearchParams(window.location.search);
+      const title = params.get('title') || '';
+      const text = params.get('text') || '';
+      const url = params.get('url') || window.location.href.split('?')[0];
+
+      if (!navigator.share) {
+        setStatus('Sharing not supported');
+        showError('This browser does not support the Web Share API (navigator.share).');
+        showDetails('title=' + JSON.stringify(title) + ', text=' + JSON.stringify(text) + ', url=' + JSON.stringify(url));
+        return;
+      }
+
+      const payload = {};
+      if (title) payload.title = title;
+      if (text) payload.text = text;
+      if (url) payload.url = url;
+
+      if (!payload.title && !payload.text && !payload.url) {
+        setStatus('Nothing to share');
+        showError('Missing ?title=, ?text= or ?url= in the query string.');
+        return;
+      }
+
+      setStatus('Opening share…');
+      showDetails('title=' + JSON.stringify(title) + ', text=' + JSON.stringify(text) + ', url=' + JSON.stringify(url));
+
+      navigator.share(payload)
+        .then(function () {
+          setStatus('Shared successfully');
+        })
+        .catch(function (err) {
+          if (err && err.name === 'AbortError') {
+            setStatus('Share dismissed');
+          } else {
+            setStatus('Share failed');
+            showError('Error: ' + (err && err.message ? err.message : String(err)));
+          }
+        });
+    })();
+  </script>
+</body>
+</html>
