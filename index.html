@@ -312,17 +312,64 @@
         card.style.display = 'none';
       }
 
-      // Função para buscar metadados Open Graph via proxy
+      // Função para buscar metadados Open Graph via proxy com fallbacks
       async function fetchOGData(targetUrl) {
+        // Definição dos proxies em ordem de prioridade
+        const proxies = [
+          {
+            name: 'codetabs',
+            getUrl: (u) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`,
+            extractHtml: async (res) => await res.text() // Retorna raw HTML
+          },
+          {
+            name: 'thebugging',
+            getUrl: (u) => `https://api.thebugging.com/cors-proxy?${u}`, // Formato específico solicitado
+            extractHtml: async (res) => await res.text() // Retorna raw HTML
+          },
+          {
+            name: 'allorigins',
+            getUrl: (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+            extractHtml: async (res) => {
+              const json = await res.json();
+              return json.contents; // Retorna HTML dentro de JSON
+            }
+          }
+        ];
+
+        let htmlContent = null;
+
+        // Tenta cada proxy sequencialmente
+        for (const proxy of proxies) {
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout por tentativa
+
+            const response = await fetch(proxy.getUrl(targetUrl), { signal: controller.signal });
+            clearTimeout(timeoutId);
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
+            htmlContent = await proxy.extractHtml(response);
+            
+            // Se conseguiu conteúdo válido, para o loop
+            if (htmlContent && htmlContent.length > 50) { // Check simples de validade
+              break; 
+            }
+          } catch (e) {
+            console.warn(`Proxy ${proxy.name} falhou:`, e);
+            // Continua para o próximo proxy
+          }
+        }
+
+        if (!htmlContent) {
+          ogTitle.textContent = new URL(targetUrl).hostname;
+          ogDesc.textContent = 'Não foi possível carregar a prévia.';
+          return;
+        }
+
         try {
-          // Usa proxy para contornar restrições CORS no navegador
-          const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-          const response = await fetch(proxyUrl);
-          if (!response.ok) throw new Error('Falha no proxy');
-          
-          const data = await response.json();
           const parser = new DOMParser();
-          const doc = parser.parseFromString(data.contents, "text/html");
+          const doc = parser.parseFromString(htmlContent, "text/html");
 
           const getMeta = (prop) => {
             const el = doc.querySelector(`meta[property="${prop}"]`) || doc.querySelector(`meta[name="${prop}"]`);
@@ -340,9 +387,15 @@
           if (fetchedImage) {
             // Corrige URLs relativas se necessário
             let finalImgUrl = fetchedImage;
-            if (fetchedImage.startsWith('/')) {
-              const u = new URL(targetUrl);
-              finalImgUrl = `${u.protocol}//${u.host}${fetchedImage}`;
+            // Verifica se é URL relativa (começa com / mas não //) ou relativa ao documento atual
+            if (!fetchedImage.match(/^https?:\/\//) && !fetchedImage.startsWith('//')) {
+               try {
+                 const u = new URL(targetUrl);
+                 // Resolve URL relativa baseada na URL original do alvo
+                 finalImgUrl = new URL(fetchedImage, u.origin).href;
+               } catch(err) {
+                 console.warn('Erro ao resolver URL da imagem', err);
+               }
             }
             
             ogImage.src = finalImgUrl;
@@ -355,9 +408,9 @@
             };
           }
         } catch (e) {
-          console.warn('Não foi possível carregar OG Data:', e);
-          ogTitle.textContent = url;
-          ogDesc.textContent = 'Não foi possível carregar a prévia.';
+          console.warn('Erro ao processar HTML:', e);
+          ogTitle.textContent = new URL(targetUrl).hostname;
+          ogDesc.textContent = 'Prévia indisponível.';
         }
       }
 
