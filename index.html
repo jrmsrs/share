@@ -78,7 +78,8 @@
       font-weight: 500;
       letter-spacing: 0.01em;
     }
-    /* ESTILOS PARA DADOS DO USUARIO FORA DO CARD */
+    
+    /* Estilos para dados do usuário (título e texto) */
     #userTitle {
       font-size: 1.25rem;
       font-weight: 600;
@@ -103,7 +104,7 @@
       letter-spacing: 0.05em;
     }
 
-    /* CARD AGORA É APENAS O PREVIEW DO LINK */
+    /* Estilos do Card de Preview */
     .card {
       border: 1px solid;
       border-radius: 12px;
@@ -112,11 +113,11 @@
       width: 100%;
       display: flex;
       flex-direction: column;
-      align-items: flex-start; /* Alinhado a esquerda como cards sociais */
+      align-items: flex-start;
       justify-content: flex-start;
-      overflow: hidden; /* Para a imagem nao vazar */
+      overflow: hidden;
       transition: opacity .25s;
-      padding: 0; /* Padding removido para imagem full-width */
+      padding: 0;
       background: rgba(128, 128, 128, 0.05);
     }
     
@@ -134,7 +135,7 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
-      display: none; /* Show only when loaded */
+      display: none; /* Exibe apenas quando carregada */
     }
 
     .thumb-placeholder {
@@ -200,7 +201,7 @@
       text-align: center;
     }
     
-    /* Loading state */
+    /* Estado de carregamento */
     .skeleton {
       background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
       background-size: 200% 100%;
@@ -221,14 +222,14 @@
     <h1 id="status">Preparando compartilhamento…</h1>
     <div class="share-tip" id="shareTip">Toque na tela para compartilhar</div>
     
-    <!-- NOVOS ELEMENTOS FORA DO CARD -->
+    <!-- Título e Texto do usuário -->
     <h2 id="userTitle" class="hidden"></h2>
     <p id="userText" class="hidden"></p>
 
-    <!-- CARD AGORA É O LINK PREVIEW -->
+    <!-- Card de Preview do Link -->
     <div class="card" id="previewCard" style="display:none;">
       
-      <!-- Area da Imagem -->
+      <!-- Área da Imagem -->
       <div class="img-container" id="imgContainer">
         <div class="thumb-placeholder" id="thumbPlaceholder">
           <svg width="40" height="40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 5a15 15 0 100 30 15 15 0 000-30zm0 27c-6.6 0-12-5.4-12-12s5.4-12 12-12 12 5.4 12 12-5.4 12-12 12zm-1-17h2v6h-2v-6zm0 8h2v2h-2v-2z" fill="#a0a0a0" opacity="0.5"/></svg>
@@ -236,7 +237,7 @@
         <img id="ogImage" class="card-img" alt="Link preview" />
       </div>
 
-      <!-- Conteudo do Link -->
+      <!-- Conteúdo do Link -->
       <div class="card-content">
         <div id="ogTitle" class="og-title">Carregando prévia...</div>
         <div id="ogDesc" class="og-desc"></div>
@@ -268,8 +269,9 @@
       const title = params.get('title') || '';
       const text = params.get('text') || '';
       const url = params.get('url') || '';
+      const autoClose = params.get('autoclose') === 'true';
 
-      // Configuração inicial de visibilidade e erro
+      // Validação inicial de suporte e parâmetros
       if (!navigator.share) {
         statusEl.textContent = 'Compartilhamento não suportado';
         tipEl.classList.add('hidden');
@@ -288,7 +290,7 @@
         return;
       }
 
-      // PREENCHE DADOS DO USUARIO FORA DO CARD
+      // Preenche dados do usuário na UI
       if (title) {
         userTitleEl.textContent = title;
         userTitleEl.classList.remove('hidden');
@@ -298,33 +300,30 @@
         userTextEl.classList.remove('hidden');
       }
 
-      // LOGICA DO PREVIEW DO LINK (CARD)
+      // Lógica de Preview do Link
       if (url) {
         card.style.display = 'flex';
-        ogUrl.textContent = new URL(url).hostname; // Mostra apenas o domínio inicialmente
+        ogUrl.textContent = new URL(url).hostname; // Domínio inicial
         ogUrl.href = url;
         
-        // Inicia fetch de metadados
+        // Busca metadados se houver URL
         fetchOGData(url);
       } else {
-        // Se nao tem URL, esconde o card de preview
         card.style.display = 'none';
       }
 
-      // FUNCAO PARA BUSCAR METADADOS VIA PROXY
+      // Função para buscar metadados Open Graph via proxy
       async function fetchOGData(targetUrl) {
         try {
-          // USA PROXY PARA EVITAR CORS ERROR EM CLIENT-SIDE PURO
+          // Usa proxy para contornar restrições CORS no navegador
           const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
           const response = await fetch(proxyUrl);
           if (!response.ok) throw new Error('Falha no proxy');
           
           const data = await response.json();
-          // parse o HTML retornado na string
           const parser = new DOMParser();
           const doc = parser.parseFromString(data.contents, "text/html");
 
-          // Helpers de extração
           const getMeta = (prop) => {
             const el = doc.querySelector(`meta[property="${prop}"]`) || doc.querySelector(`meta[name="${prop}"]`);
             return el ? el.getAttribute('content') : null;
@@ -334,12 +333,12 @@
           const fetchedDesc = getMeta('og:description') || getMeta('description') || '';
           const fetchedImage = getMeta('og:image');
 
-          // Atualiza UI
+          // Atualiza UI com dados obtidos
           ogTitle.textContent = fetchedTitle;
           ogDesc.textContent = fetchedDesc;
 
           if (fetchedImage) {
-            // Tenta resolver URL relativa da imagem se necessario
+            // Corrige URLs relativas se necessário
             let finalImgUrl = fetchedImage;
             if (fetchedImage.startsWith('/')) {
               const u = new URL(targetUrl);
@@ -352,7 +351,7 @@
               thumbPlaceholder.style.display = 'none';
             };
             ogImage.onerror = () => {
-               // Silently fail to placeholder
+               // Falha silenciosa, mantém o placeholder
             };
           }
         } catch (e) {
@@ -368,7 +367,15 @@
           ...(text && {text}),
           ...(url && {url})
         })
-        .then(function () { statusEl.textContent = 'Compartilhado com sucesso'; })
+        .then(function () { 
+          statusEl.textContent = 'Compartilhado com sucesso';
+          if (autoClose) {
+            statusEl.textContent = 'Fechando janela...';
+            setTimeout(function() {
+              window.close();
+            }, 800);
+          }
+        })
         .catch(function (err) {
           if (err && err.name === 'AbortError') {
             statusEl.textContent = 'Compartilhamento cancelado';
@@ -378,7 +385,6 @@
             errMsg.classList.remove('hidden');
           }
         });
-        // FINALLY REMOVIDO PARA PERMITIR RE-TENTATIVA (CONFORME SOLICITACAO ANTERIOR)
       }
 
       document.addEventListener('click', doShare);
